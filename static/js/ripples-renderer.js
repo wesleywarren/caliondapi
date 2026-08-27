@@ -65,23 +65,27 @@
         let phase = 0;
         let autoPulseAt = performance.now();
         let pulses = [];
+        const virtualCanvas = document.createElement("canvas");
+        const virtualContext = virtualCanvas.getContext("2d", { alpha: false, willReadFrequently: true });
 
         function resizeCanvas() {
+            virtualCanvas.width = config.virtualWidth;
+            virtualCanvas.height = config.virtualHeight;
             canvas.width = config.outputWidth;
             canvas.height = config.outputHeight;
         }
 
         function currentOrigin() {
             return {
-                x: clamp(config.originX, 0, config.outputWidth),
-                y: clamp(config.originY, 0, config.outputHeight)
+                x: clamp((Number(config.originX) / 100) * config.virtualWidth, 0, config.virtualWidth),
+                y: clamp((Number(config.originY) / 100) * config.virtualHeight, 0, config.virtualHeight)
             };
         }
 
         function addPulse(pulse) {
             pulses.push({
-                x: clamp(Number(pulse.x ?? currentOrigin().x), 0, config.outputWidth),
-                y: clamp(Number(pulse.y ?? currentOrigin().y), 0, config.outputHeight),
+                x: clamp(Number(pulse.x ?? currentOrigin().x), 0, config.virtualWidth),
+                y: clamp(Number(pulse.y ?? currentOrigin().y), 0, config.virtualHeight),
                 radius: 0,
                 strength: clamp(Number(pulse.strength ?? 1), 0.1, 4),
                 createdAt: performance.now()
@@ -120,8 +124,8 @@
 
             const bg = hexToRgb(config.backgroundColor);
             const base = hexToRgb(config.rippleColor);
-            context.fillStyle = `rgb(${bg.r}, ${bg.g}, ${bg.b})`;
-            context.fillRect(0, 0, canvas.width, canvas.height);
+            virtualContext.fillStyle = `rgb(${bg.r}, ${bg.g}, ${bg.b})`;
+            virtualContext.fillRect(0, 0, virtualCanvas.width, virtualCanvas.height);
 
             const nextPulses = [];
             pulses.forEach((pulse, index) => {
@@ -129,12 +133,12 @@
 
                 const variation = Number(config.colorVariation || 0);
                 const color = mixColor(base, phase + index * 0.75 + variation);
-                const alpha = clamp(1 - (pulse.radius / Math.max(canvas.width, canvas.height) * 0.9), 0, 1);
+                const alpha = clamp(1 - (pulse.radius / Math.max(virtualCanvas.width, virtualCanvas.height) * 0.9), 0, 1);
                 const thickness = clamp(Number(config.thickness || 4), 1, 16);
 
-                context.lineWidth = thickness;
-                context.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
-                context.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.16})`;
+                virtualContext.lineWidth = thickness;
+                virtualContext.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+                virtualContext.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.16})`;
 
                 if (String(config.shape || "circle") === "square") {
                     const size = pulse.radius * 2;
@@ -142,17 +146,17 @@
                     const top = pulse.y - pulse.radius;
 
                     if (config.solidShapes) {
-                        context.fillRect(left, top, size, size);
+                        virtualContext.fillRect(left, top, size, size);
                     } else {
-                        context.strokeRect(left, top, size, size);
+                        virtualContext.strokeRect(left, top, size, size);
                     }
                 } else {
-                    context.beginPath();
-                    context.arc(pulse.x, pulse.y, Math.max(0.1, pulse.radius), 0, Math.PI * 2);
+                    virtualContext.beginPath();
+                    virtualContext.arc(pulse.x, pulse.y, Math.max(0.1, pulse.radius), 0, Math.PI * 2);
                     if (config.solidShapes) {
-                        context.fill();
+                        virtualContext.fill();
                     } else {
-                        context.stroke();
+                        virtualContext.stroke();
                     }
                 }
 
@@ -162,7 +166,30 @@
             });
 
             pulses = nextPulses;
+            buildOutputFrame();
             frameHandle = requestAnimationFrame(draw);
+        }
+
+        function buildOutputFrame() {
+            const source = virtualContext.getImageData(0, 0, virtualCanvas.width, virtualCanvas.height);
+            const target = context.createImageData(config.outputWidth, config.outputHeight);
+            const yScale = config.verticalScale || (config.virtualHeight / config.outputHeight);
+
+            for (let y = 0; y < config.outputHeight; y += 1) {
+                const sourceY = clamp(Math.floor(y * yScale), 0, config.virtualHeight - 1);
+
+                for (let x = 0; x < config.outputWidth; x += 1) {
+                    const sourceIndex = (sourceY * config.virtualWidth + x) * 4;
+                    const targetIndex = (y * config.outputWidth + x) * 4;
+
+                    target.data[targetIndex + 0] = source.data[sourceIndex + 0];
+                    target.data[targetIndex + 1] = source.data[sourceIndex + 1];
+                    target.data[targetIndex + 2] = source.data[sourceIndex + 2];
+                    target.data[targetIndex + 3] = 255;
+                }
+            }
+
+            context.putImageData(target, 0, 0);
         }
 
         resizeCanvas();
