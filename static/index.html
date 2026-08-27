@@ -130,6 +130,10 @@
                 <span class="meta-value" id="config-version">-</span>
             </div>
             <div class="meta-row">
+                <span class="meta-label">Engine</span>
+                <span class="meta-value" id="engine-type">ripples</span>
+            </div>
+            <div class="meta-row">
                 <span class="meta-label">State source</span>
                 <span class="meta-value ok" id="state-source">fallback</span>
             </div>
@@ -137,11 +141,16 @@
                 <span class="meta-label">Last sync</span>
                 <span class="meta-value" id="last-sync">never</span>
             </div>
+            <div class="meta-row">
+                <span class="meta-label">Cloud sync</span>
+                <span class="meta-value" id="sync-status">booting</span>
+            </div>
         </div>
         <ul class="log" id="log"></ul>
     </section>
 
     <script src="/js/ripples-renderer.js"></script>
+    <script src="/js/clouds-renderer.js"></script>
     <script src="/js/output.js"></script>
 </body>
 </html>
