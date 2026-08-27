@@ -55,6 +55,7 @@
             runner = library.createCanvasRunner({
                 canvas,
                 config,
+                mode: "output",
                 alpha: false
             });
             runner.start();
@@ -67,6 +68,7 @@
             runner = library.createCanvasRunner({
                 canvas,
                 config,
+                mode: "output",
                 alpha: false
             });
             runner.start();
