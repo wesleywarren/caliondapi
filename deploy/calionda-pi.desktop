@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Calionda Pi Kiosk
+Comment=Launch the local Calionda output in Chromium kiosk mode
+Exec=/home/pi/caliondapi/scripts/launch_kiosk.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true

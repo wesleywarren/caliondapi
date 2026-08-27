@@ -10,6 +10,7 @@ Current first-pass features:
 - engine-by-type rendering for `ripples` and `clouds`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
 - background cloud sync for the active Calionda display state
+- boot-ready kiosk launcher and service templates
 
 ## Run locally
 
@@ -33,6 +34,9 @@ http://localhost:8000/
 - `static/js/clouds-renderer.js` clouds animation engine
 - `static/js/output.js` local page bootstrap and polling
 - `monitor.sh` mirror both HDMI outputs on the Pi
+- `scripts/launch_kiosk.sh` waits for the local server and opens Chromium fullscreen
+- `deploy/caliondapi.service` systemd unit for the local server
+- `deploy/calionda-pi.desktop` desktop autostart entry for the kiosk browser
 
 ## Notes
 
@@ -44,3 +48,43 @@ http://localhost:8000/
   - `CALIONDA_CLOUD_BASE_URL`
   - `CALIONDA_SYNC_INTERVAL_SECONDS`
   - `CALIONDA_SYNC_TIMEOUT_SECONDS`
+
+## Autostart On Pi
+
+These steps assume the repo is installed at `/home/pi/caliondapi`.
+
+Make the kiosk script executable:
+
+```bash
+chmod +x /home/pi/caliondapi/scripts/launch_kiosk.sh
+chmod +x /home/pi/caliondapi/monitor.sh
+```
+
+Install the local server as a system service:
+
+```bash
+sudo cp /home/pi/caliondapi/deploy/caliondapi.service /etc/systemd/system/caliondapi.service
+sudo systemctl daemon-reload
+sudo systemctl enable caliondapi.service
+sudo systemctl restart caliondapi.service
+```
+
+Install the Chromium autostart entry for the `pi` desktop session:
+
+```bash
+mkdir -p /home/pi/.config/autostart
+cp /home/pi/caliondapi/deploy/calionda-pi.desktop /home/pi/.config/autostart/calionda-pi.desktop
+```
+
+Reboot to test:
+
+```bash
+sudo reboot
+```
+
+Useful checks after boot:
+
+```bash
+systemctl status caliondapi.service
+curl -s http://127.0.0.1:8000/api/health
+```

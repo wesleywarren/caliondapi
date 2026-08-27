@@ -1,0 +1,17 @@
+[Unit]
+Description=Calionda Pi local runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/caliondapi
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /home/pi/caliondapi/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
