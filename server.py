@@ -26,6 +26,7 @@ HOST = os.environ.get("CALIONDA_PI_HOST", "0.0.0.0")
 PORT = int(os.environ.get("CALIONDA_PI_PORT", "8000"))
 DISPLAY_ID = os.environ.get("CALIONDA_PI_DISPLAY_ID", "calionda-main")
 CLOUD_BASE_URL = os.environ.get("CALIONDA_CLOUD_BASE_URL", "https://calionda.com").rstrip("/")
+LIVE_WEBSOCKET_BASE_URL = os.environ.get("CALIONDA_CLOUD_WEBSOCKET_BASE_URL", "").rstrip("/")
 SYNC_INTERVAL_SECONDS = max(5, int(os.environ.get("CALIONDA_SYNC_INTERVAL_SECONDS", "15")))
 SYNC_TIMEOUT_SECONDS = max(1, int(os.environ.get("CALIONDA_SYNC_TIMEOUT_SECONDS", "8")))
 STATE_LOCK = threading.Lock()
@@ -81,6 +82,19 @@ def cloud_state_url() -> str:
     return f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/state"
 
 
+def cloud_live_websocket_url() -> str:
+    if LIVE_WEBSOCKET_BASE_URL:
+        base = LIVE_WEBSOCKET_BASE_URL
+    else:
+        parsed = urlparse(CLOUD_BASE_URL)
+        scheme = "wss" if parsed.scheme == "https" else "ws"
+        authority = parsed.netloc
+        path = parsed.path.rstrip("/")
+        base = f"{scheme}://{authority}{path}"
+
+    return f"{base}/ws?display_id={quote(DISPLAY_ID)}&client=pi"
+
+
 def load_sync_status() -> dict:
     with STATE_LOCK:
         status = dict(SYNC_STATUS)
@@ -96,6 +110,7 @@ def load_sync_status() -> dict:
                 status.update(payload)
 
         status["cloud_url"] = cloud_state_url()
+        status["live_websocket_url"] = cloud_live_websocket_url()
         status["state_source"] = "runtime" if RUNTIME_STATE_PATH.exists() else "default"
 
         return status
@@ -106,6 +121,7 @@ def store_sync_status(**updates: Any) -> None:
         SYNC_STATUS.update(updates)
         payload = dict(SYNC_STATUS)
         payload["cloud_url"] = cloud_state_url()
+        payload["live_websocket_url"] = cloud_live_websocket_url()
         atomic_write_json(SYNC_STATUS_PATH, payload)
 
 

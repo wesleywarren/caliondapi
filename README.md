@@ -10,6 +10,7 @@ Current first-pass features:
 - engine-by-type rendering for `ripples` and `clouds`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
 - background cloud sync for the active Calionda display state
+- direct cloud WebSocket bridge for live touch events
 - boot-ready kiosk launcher and service templates
 
 ## Run locally
@@ -46,6 +47,7 @@ http://localhost:8000/
 - Override runtime settings with:
   - `CALIONDA_PI_DISPLAY_ID`
   - `CALIONDA_CLOUD_BASE_URL`
+  - `CALIONDA_CLOUD_WEBSOCKET_BASE_URL`
   - `CALIONDA_SYNC_INTERVAL_SECONDS`
   - `CALIONDA_SYNC_TIMEOUT_SECONDS`
 

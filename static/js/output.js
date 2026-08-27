@@ -32,6 +32,14 @@
     let currentVersion = null;
     let runner = null;
     let activeType = "ripples";
+    let liveSocket = null;
+    let liveSocketUrl = null;
+    let liveConnected = false;
+    let reconnectTimer = 0;
+    let heartbeatTimer = 0;
+    let snapshotTimer = 0;
+    let lastHealthResult = "booting";
+    let lastLoggedSyncError = "";
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -80,6 +88,13 @@
         runner.applyConfig(config);
     }
 
+    function updateSyncStatus() {
+        const liveLabel = liveConnected ? "live" : "polling";
+        const syncLabel = lastHealthResult || "unknown";
+        syncStatusEl.textContent = `${syncLabel} / ${liveLabel}`;
+        syncStatusEl.className = liveConnected || lastHealthResult === "ok" ? "meta-value ok" : "meta-value warn";
+    }
+
     function applyState(payload, source) {
         const config = normalizeConfigForType((payload && payload.state) || fallbackState.state);
         const nextVersion = payload && payload.version != null ? payload.version : currentVersion;
@@ -96,6 +111,167 @@
         currentVersion = nextVersion;
 
         ensureRunner(config);
+    }
+
+    function currentSnapshotPayload() {
+        if (!runner || typeof runner.getSnapshot !== "function" || typeof runner.getConfig !== "function") {
+            return null;
+        }
+
+        return {
+            state_id: `pi-${Date.now()}`,
+            config_version: runner.getConfig().version || currentVersion || null,
+            ...runner.getSnapshot()
+        };
+    }
+
+    function sendSocketMessage(payload) {
+        if (!liveSocket || liveSocket.readyState !== window.WebSocket.OPEN) {
+            return false;
+        }
+
+        liveSocket.send(JSON.stringify(payload));
+        return true;
+    }
+
+    function sendCurrentState() {
+        const snapshot = currentSnapshotPayload();
+
+        if (!snapshot) {
+            return false;
+        }
+
+        return sendSocketMessage({
+            type: "current_state",
+            display_id: displayIdEl.textContent || "calionda-main",
+            state: snapshot
+        });
+    }
+
+    function clearLiveTimers() {
+        window.clearTimeout(reconnectTimer);
+        window.clearInterval(heartbeatTimer);
+        window.clearInterval(snapshotTimer);
+        reconnectTimer = 0;
+        heartbeatTimer = 0;
+        snapshotTimer = 0;
+    }
+
+    function scheduleReconnect() {
+        if (reconnectTimer) {
+            return;
+        }
+
+        reconnectTimer = window.setTimeout(function () {
+            reconnectTimer = 0;
+            connectLiveSocket(liveSocketUrl);
+        }, 2000);
+    }
+
+    function handleLiveMessage(payload) {
+        if (!payload || typeof payload !== "object") {
+            return;
+        }
+
+        if (payload.type === "heartbeat") {
+            return;
+        }
+
+        if (payload.type === "touch_event" && payload.event && runner && typeof runner.addEvents === "function") {
+            runner.addEvents([payload.event]);
+            return;
+        }
+
+        if (payload.type === "config_update" && payload.state) {
+            const nextState = {
+                display_id: payload.display_id || displayIdEl.textContent || "calionda-main",
+                type: payload.state.type || activeType,
+                version: payload.state.version != null ? payload.state.version : currentVersion,
+                updated_at: payload.state.updated_at || lastSyncEl.textContent,
+                state: payload.state.state || payload.state.config || payload.state
+            };
+
+            applyState(nextState, "live cloud");
+            log(`Applied live config update${nextState.version != null ? ` v${nextState.version}` : ""}`, "ok");
+            return;
+        }
+
+        if (payload.type === "hello") {
+            log("Live touch bridge connected", "ok");
+            return;
+        }
+    }
+
+    function connectLiveSocket(url) {
+        liveSocketUrl = url || liveSocketUrl;
+
+        if (!liveSocketUrl || typeof window.WebSocket !== "function") {
+            liveConnected = false;
+            updateSyncStatus();
+            return;
+        }
+
+        if (liveSocket && (liveSocket.readyState === window.WebSocket.OPEN || liveSocket.readyState === window.WebSocket.CONNECTING)) {
+            return;
+        }
+
+        try {
+            liveSocket = new window.WebSocket(liveSocketUrl);
+        } catch (error) {
+            liveConnected = false;
+            updateSyncStatus();
+            scheduleReconnect();
+            return;
+        }
+
+        liveSocket.addEventListener("open", function () {
+            const displayId = displayIdEl.textContent || "calionda-main";
+
+            liveConnected = true;
+            updateSyncStatus();
+            log("Live socket open", "ok");
+
+            sendSocketMessage({
+                type: "subscribe",
+                display_id: displayId,
+                client: "pi"
+            });
+
+            sendCurrentState();
+
+            heartbeatTimer = window.setInterval(function () {
+                sendSocketMessage({
+                    type: "heartbeat",
+                    display_id: displayId,
+                    client: "pi"
+                });
+            }, 10000);
+
+            snapshotTimer = window.setInterval(function () {
+                sendCurrentState();
+            }, 3000);
+        });
+
+        liveSocket.addEventListener("message", function (event) {
+            try {
+                handleLiveMessage(JSON.parse(event.data));
+            } catch (error) {
+                // Ignore malformed live messages and keep the socket open.
+            }
+        });
+
+        liveSocket.addEventListener("close", function () {
+            clearLiveTimers();
+            liveConnected = false;
+            updateSyncStatus();
+            log("Live socket closed, falling back to polling", "warn");
+            scheduleReconnect();
+        });
+
+        liveSocket.addEventListener("error", function () {
+            liveConnected = false;
+            updateSyncStatus();
+        });
     }
 
     async function refreshState() {
@@ -138,19 +314,23 @@
             }
 
             const payload = await response.json();
-            syncStatusEl.textContent = payload.last_result || "unknown";
-            syncStatusEl.className = payload.last_result === "ok" ? "meta-value ok" : "meta-value warn";
+            lastHealthResult = payload.last_result || "unknown";
+            updateSyncStatus();
+
+            if (payload.live_websocket_url) {
+                connectLiveSocket(payload.live_websocket_url);
+            }
 
             if (payload.last_error) {
-                const newest = logEl.firstChild ? logEl.firstChild.textContent : "";
                 const message = `Cloud sync issue: ${payload.last_error}`;
-                if (!newest.includes(message)) {
+                if (message !== lastLoggedSyncError) {
                     log(message, "warn");
+                    lastLoggedSyncError = message;
                 }
             }
         } catch (error) {
-            syncStatusEl.textContent = "offline";
-            syncStatusEl.className = "meta-value warn";
+            lastHealthResult = "offline";
+            updateSyncStatus();
         }
     }
 
