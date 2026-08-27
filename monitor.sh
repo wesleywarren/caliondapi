@@ -1,0 +1,1 @@
+wlr-randr --output HDMI-A-1 --on --mode 1280x720 --pos 0,0 --output HDMI-A-2 --mode 1280x720 --pos 0,0

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calionda Pi Output</title>
+    <style>
+        :root {
+            --crop-x: 50px;
+            --crop-y: 50px;
+            --panel-left: 400px;
+            --panel-width: min(420px, calc(100vw - 430px));
+            --panel-bg: rgba(15, 23, 42, 0.82);
+            --panel-border: rgba(148, 163, 184, 0.28);
+            --panel-text: #dbeafe;
+            --panel-dim: #94a3b8;
+            --panel-accent: #67e8f9;
+            --status-ok: #86efac;
+            --status-warn: #fcd34d;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.08), transparent 24%),
+                radial-gradient(circle at 85% 22%, rgba(96, 165, 250, 0.12), transparent 25%),
+                linear-gradient(180deg, #030712 0%, #000000 100%);
+            color: #fff;
+            font-family: "Courier New", Courier, monospace;
+        }
+
+        #pixelblaster-output {
+            position: absolute;
+            left: var(--crop-x);
+            top: var(--crop-y);
+            width: 255px;
+            height: 36px;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .debug-panel {
+            position: absolute;
+            left: var(--panel-left);
+            top: 20px;
+            width: var(--panel-width);
+            max-height: calc(100vh - 40px);
+            padding: 16px 18px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(8px);
+            box-sizing: border-box;
+        }
+
+        .debug-panel h1 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--panel-accent);
+        }
+
+        .meta {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .meta-label {
+            color: var(--panel-dim);
+        }
+
+        .meta-value {
+            text-align: right;
+        }
+
+        .log {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 6px;
+            font-size: 11px;
+            line-height: 1.35;
+            max-height: calc(100vh - 180px);
+            overflow: auto;
+        }
+
+        .log li {
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.66);
+            color: var(--panel-dim);
+        }
+
+        .ok {
+            color: var(--status-ok);
+        }
+
+        .warn {
+            color: var(--status-warn);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="pixelblaster-output" width="255" height="36"></canvas>
+
+    <section class="debug-panel" aria-label="Output status">
+        <h1>Calionda Pi</h1>
+        <div class="meta">
+            <div class="meta-row">
+                <span class="meta-label">Display</span>
+                <span class="meta-value" id="display-id">calionda-main</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Config version</span>
+                <span class="meta-value" id="config-version">-</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">State source</span>
+                <span class="meta-value ok" id="state-source">fallback</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Last sync</span>
+                <span class="meta-value" id="last-sync">never</span>
+            </div>
+        </div>
+        <ul class="log" id="log"></ul>
+    </section>
+
+    <script src="/js/ripples-renderer.js"></script>
+    <script src="/js/output.js"></script>
+</body>
+</html>

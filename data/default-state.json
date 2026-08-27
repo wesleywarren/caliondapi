@@ -1,0 +1,29 @@
+{
+  "display_id": "calionda-main",
+  "type": "ripples",
+  "version": 1,
+  "updated_at": "2026-08-27T00:00:00Z",
+  "state": {
+    "type": "ripples",
+    "backgroundColor": "#000000",
+    "shape": "circle",
+    "originX": 60,
+    "originY": 33,
+    "rippleColor": "#5cc8ff",
+    "colorVariation": 2,
+    "thickness": 4,
+    "sharpness": 7,
+    "speed": 0.45,
+    "interval": 5,
+    "intervalRandomness": 2,
+    "solidShapes": false,
+    "showMask": true,
+    "virtualWidth": 255,
+    "virtualHeight": 360,
+    "outputWidth": 255,
+    "outputHeight": 36,
+    "verticalScale": 10,
+    "cropX": 50,
+    "cropY": 50
+  }
+}
