@@ -68,6 +68,13 @@
             color: var(--panel-accent);
         }
 
+        .support-note {
+            margin: 0 0 18px;
+            color: var(--panel-text);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
         .meta {
             display: grid;
             gap: 8px;
@@ -123,12 +130,8 @@
     <section class="debug-panel" aria-label="Output status">
         <h1 style="color:red">DO NOT UNPLUG OR ALTER THIS SYSTEM</h1>
         <h1>Calionda LED Controller</h1>
-        Need help? Call Wes Warren at wes@calionda.com or (510) 239-9352
+        <p class="support-note">Need help? Call Wes Warren at wes@calionda.com or (510) 239-9352</p>
         <div class="meta">
-            <div class="meta-row">
-                <span class="meta-label">Display</span>
-                <span class="meta-value" id="display-id">calionda-main</span>
-            </div>
             <div class="meta-row">
                 <span class="meta-label">Config version</span>
                 <span class="meta-value" id="config-version">-</span>
