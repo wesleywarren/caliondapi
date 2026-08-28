@@ -21,13 +21,13 @@
     };
 
     const canvas = document.getElementById("pixelblaster-output");
-    const displayIdEl = document.getElementById("display-id");
     const configVersionEl = document.getElementById("config-version");
     const engineTypeEl = document.getElementById("engine-type");
     const stateSourceEl = document.getElementById("state-source");
     const lastSyncEl = document.getElementById("last-sync");
     const syncStatusEl = document.getElementById("sync-status");
     const logEl = document.getElementById("log");
+    const fallbackDisplayId = "calionda-main";
 
     let currentVersion = null;
     let runner = null;
@@ -106,7 +106,6 @@
 
         document.documentElement.style.setProperty("--crop-x", `${config.cropX}px`);
         document.documentElement.style.setProperty("--crop-y", `${config.cropY}px`);
-        displayIdEl.textContent = payload.display_id || "calionda-main";
         configVersionEl.textContent = nextVersion == null ? "-" : String(nextVersion);
         engineTypeEl.textContent = nextType;
         stateSourceEl.textContent = source;
@@ -147,9 +146,14 @@
 
         return sendSocketMessage({
             type: "current_state",
-            display_id: displayIdEl.textContent || "calionda-main",
+            display_id: currentStateDisplayId(),
             state: snapshot
         });
+    }
+
+    function currentStateDisplayId() {
+        const payloadDisplayId = runner && typeof runner.getConfig === "function" ? runner.getConfig().display_id : null;
+        return payloadDisplayId || fallbackDisplayId;
     }
 
     function clearLiveTimers() {
@@ -198,7 +202,7 @@
                 lastMessageId = payload.message_id;
             }
             const nextState = {
-                display_id: payload.display_id || displayIdEl.textContent || "calionda-main",
+                display_id: payload.display_id || currentStateDisplayId(),
                 type: payload.state.type || activeType,
                 version: payload.state.version != null ? payload.state.version : currentVersion,
                 updated_at: payload.state.updated_at || lastSyncEl.textContent,
@@ -239,7 +243,7 @@
         }
 
         liveSocket.addEventListener("open", function () {
-            const displayId = displayIdEl.textContent || "calionda-main";
+            const displayId = currentStateDisplayId();
 
             liveConnected = true;
             updateSyncStatus();
