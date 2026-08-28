@@ -393,14 +393,22 @@
                 const lineWidth = Math.max(2, config.thickness * 0.72);
 
                 ctx.save();
-                ctx.globalCompositeOperation = 'screen';
                 ctx.strokeStyle = pulse.color;
                 ctx.fillStyle = pulse.color;
-                ctx.globalAlpha = Math.min(1, alpha * 0.2);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = Math.min(1, alpha * 0.18);
+                ctx.filter = 'blur(' + Math.max(2, (10 - config.sharpness) * 0.9).toFixed(2) + 'px)';
                 ctx.beginPath();
-                ctx.arc(x, y, radius * 0.45, 0, Math.PI * 2);
+                ctx.arc(x, y, radius * 0.62, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.globalAlpha = Math.min(1, alpha);
+                ctx.filter = 'none';
+                ctx.globalAlpha = Math.min(1, alpha * 0.72);
+                ctx.lineWidth = lineWidth * 1.35;
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 0.82, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = Math.min(1, alpha * 0.92);
                 ctx.lineWidth = lineWidth;
                 ctx.filter = 'blur(' + Math.max(0, (10 - config.sharpness) * 0.6).toFixed(2) + 'px)';
                 ctx.beginPath();
