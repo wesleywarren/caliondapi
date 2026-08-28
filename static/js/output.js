@@ -43,6 +43,7 @@
     let lastHealthResult = "booting";
     let lastLoggedSyncError = "";
     let lastEventId = null;
+    let lastMessageId = null;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -186,10 +187,16 @@
 
         if (payload.type === "touch_event" && payload.event && runner && typeof runner.addEvents === "function") {
             runner.addEvents([payload.event]);
+            if (payload.message_id) {
+                lastMessageId = payload.message_id;
+            }
             return;
         }
 
         if (payload.type === "config_update" && payload.state) {
+            if (payload.message_id) {
+                lastMessageId = payload.message_id;
+            }
             const nextState = {
                 display_id: payload.display_id || displayIdEl.textContent || "calionda-main",
                 type: payload.state.type || activeType,
@@ -308,10 +315,10 @@
     }
 
     async function refreshEvents() {
-        const suffix = lastEventId ? `?since=${encodeURIComponent(lastEventId)}` : "";
+        const suffix = lastMessageId ? `?since=${encodeURIComponent(lastMessageId)}` : "";
 
         try {
-            const response = await fetch(`/api/events${suffix}`, {
+            const response = await fetch(`/api/live/messages${suffix}`, {
                 cache: "no-store",
                 headers: {
                     "Accept": "application/json"
@@ -324,17 +331,13 @@
 
             const payload = await response.json();
 
-            if (!payload || !Array.isArray(payload.events) || payload.events.length === 0) {
+            if (!payload || !Array.isArray(payload.messages) || payload.messages.length === 0) {
                 return;
             }
 
-            if (runner && typeof runner.addEvents === "function") {
-                runner.addEvents(payload.events);
-            }
-
-            lastEventId = payload.events[payload.events.length - 1].id || lastEventId;
+            payload.messages.forEach(handleLiveMessage);
         } catch (error) {
-            const message = `Touch poll issue: ${error.message}`;
+            const message = `Live message poll issue: ${error.message}`;
             if (message !== lastLoggedSyncError) {
                 log(message, "warn");
                 lastLoggedSyncError = message;
