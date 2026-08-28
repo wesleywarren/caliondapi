@@ -35,11 +35,14 @@
     let liveSocket = null;
     let liveSocketUrl = null;
     let liveConnected = false;
+    let liveWebsocketEnabled = false;
     let reconnectTimer = 0;
     let heartbeatTimer = 0;
     let snapshotTimer = 0;
+    let eventPollTimer = 0;
     let lastHealthResult = "booting";
     let lastLoggedSyncError = "";
+    let lastEventId = null;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -152,9 +155,13 @@
         window.clearTimeout(reconnectTimer);
         window.clearInterval(heartbeatTimer);
         window.clearInterval(snapshotTimer);
+        if (eventPollTimer) {
+            window.clearInterval(eventPollTimer);
+        }
         reconnectTimer = 0;
         heartbeatTimer = 0;
         snapshotTimer = 0;
+        eventPollTimer = 0;
     }
 
     function scheduleReconnect() {
@@ -205,7 +212,7 @@
     function connectLiveSocket(url) {
         liveSocketUrl = url || liveSocketUrl;
 
-        if (!liveSocketUrl || typeof window.WebSocket !== "function") {
+        if (!liveWebsocketEnabled || !liveSocketUrl || typeof window.WebSocket !== "function") {
             liveConnected = false;
             updateSyncStatus();
             return;
@@ -300,6 +307,41 @@
         }
     }
 
+    async function refreshEvents() {
+        const suffix = lastEventId ? `?since=${encodeURIComponent(lastEventId)}` : "";
+
+        try {
+            const response = await fetch(`/api/events${suffix}`, {
+                cache: "no-store",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const payload = await response.json();
+
+            if (!payload || !Array.isArray(payload.events) || payload.events.length === 0) {
+                return;
+            }
+
+            if (runner && typeof runner.addEvents === "function") {
+                runner.addEvents(payload.events);
+            }
+
+            lastEventId = payload.events[payload.events.length - 1].id || lastEventId;
+        } catch (error) {
+            const message = `Touch poll issue: ${error.message}`;
+            if (message !== lastLoggedSyncError) {
+                log(message, "warn");
+                lastLoggedSyncError = message;
+            }
+        }
+    }
+
     async function refreshHealth() {
         try {
             const response = await fetch("/api/health", {
@@ -315,9 +357,10 @@
 
             const payload = await response.json();
             lastHealthResult = payload.last_result || "unknown";
+            liveWebsocketEnabled = payload.live_websocket_enabled === true;
             updateSyncStatus();
 
-            if (payload.live_websocket_url) {
+            if (liveWebsocketEnabled && payload.live_websocket_url) {
                 connectLiveSocket(payload.live_websocket_url);
             }
 
@@ -338,9 +381,11 @@
     log("Output booted with local fallback config", "ok");
     refreshState();
     refreshHealth();
+    refreshEvents();
 
     window.setInterval(refreshState, 10000);
     window.setInterval(refreshHealth, 10000);
+    eventPollTimer = window.setInterval(refreshEvents, 350);
 
     window.addEventListener("click", function (event) {
         if (!runner || typeof runner.addEvents !== "function") {

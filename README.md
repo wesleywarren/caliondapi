@@ -10,7 +10,7 @@ Current first-pass features:
 - engine-by-type rendering for `ripples` and `clouds`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
 - background cloud sync for the active Calionda display state
-- direct cloud WebSocket bridge for live touch events
+- direct cloud touch-event polling, with optional WebSocket bridge
 - boot-ready kiosk launcher and service templates
 
 ## Run locally
@@ -48,8 +48,12 @@ http://localhost:8000/
   - `CALIONDA_PI_DISPLAY_ID`
   - `CALIONDA_CLOUD_BASE_URL`
   - `CALIONDA_CLOUD_WEBSOCKET_BASE_URL`
+  - `CALIONDA_ENABLE_LIVE_WEBSOCKET`
   - `CALIONDA_SYNC_INTERVAL_SECONDS`
   - `CALIONDA_SYNC_TIMEOUT_SECONDS`
+
+- Touch events are polled from the cloud through the local `/api/events` proxy by default.
+- WebSockets are disabled by default on the Pi until a public live socket endpoint is confirmed.
 
 ## Autostart On Pi
 

@@ -27,6 +27,7 @@ PORT = int(os.environ.get("CALIONDA_PI_PORT", "8000"))
 DISPLAY_ID = os.environ.get("CALIONDA_PI_DISPLAY_ID", "calionda-main")
 CLOUD_BASE_URL = os.environ.get("CALIONDA_CLOUD_BASE_URL", "https://calionda.com").rstrip("/")
 LIVE_WEBSOCKET_BASE_URL = os.environ.get("CALIONDA_CLOUD_WEBSOCKET_BASE_URL", "").rstrip("/")
+ENABLE_LIVE_WEBSOCKET = os.environ.get("CALIONDA_ENABLE_LIVE_WEBSOCKET", "").lower() in {"1", "true", "yes", "on"}
 SYNC_INTERVAL_SECONDS = max(5, int(os.environ.get("CALIONDA_SYNC_INTERVAL_SECONDS", "15")))
 SYNC_TIMEOUT_SECONDS = max(1, int(os.environ.get("CALIONDA_SYNC_TIMEOUT_SECONDS", "8")))
 STATE_LOCK = threading.Lock()
@@ -83,6 +84,13 @@ def cloud_state_url() -> str:
     return f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/state"
 
 
+def cloud_events_url(since: str | None = None) -> str:
+    url = f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/events"
+    if since:
+        url = f"{url}?since={quote(since)}"
+    return url
+
+
 def cloud_live_bootstrap_url() -> str:
     return f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/live"
 
@@ -115,7 +123,9 @@ def load_sync_status() -> dict:
                 status.update(payload)
 
         status["cloud_url"] = cloud_state_url()
+        status["cloud_events_url"] = cloud_events_url()
         status["live_websocket_url"] = status.get("live_websocket_url") or fallback_live_websocket_url()
+        status["live_websocket_enabled"] = ENABLE_LIVE_WEBSOCKET
         status["state_source"] = "runtime" if RUNTIME_STATE_PATH.exists() else "default"
 
         return status
@@ -126,7 +136,9 @@ def store_sync_status(**updates: Any) -> None:
         SYNC_STATUS.update(updates)
         payload = dict(SYNC_STATUS)
         payload["cloud_url"] = cloud_state_url()
+        payload["cloud_events_url"] = cloud_events_url()
         payload["live_websocket_url"] = payload.get("live_websocket_url") or fallback_live_websocket_url()
+        payload["live_websocket_enabled"] = ENABLE_LIVE_WEBSOCKET
         atomic_write_json(SYNC_STATUS_PATH, payload)
 
 
@@ -191,6 +203,30 @@ def fetch_cloud_live_websocket_url() -> str:
     return fallback_live_websocket_url()
 
 
+def fetch_cloud_events(since: str | None = None) -> dict:
+    request = Request(
+        cloud_events_url(since),
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "caliondapi/0.1",
+        },
+        method="GET",
+    )
+
+    with urlopen(request, timeout=SYNC_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if not isinstance(payload, dict):
+        raise ValueError("Cloud events response was not a JSON object")
+
+    events = payload.get("events")
+
+    return {
+        "display_id": payload.get("display_id") or DISPLAY_ID,
+        "events": events if isinstance(events, list) else [],
+    }
+
+
 def sync_cloud_state_once() -> dict:
     store_sync_status(last_attempt_at=iso_now(), last_result="syncing", last_error=None)
 
@@ -198,10 +234,11 @@ def sync_cloud_state_once() -> dict:
     live_websocket_url = fallback_live_websocket_url()
     current_state = load_state()
 
-    try:
-        live_websocket_url = fetch_cloud_live_websocket_url()
-    except Exception:
-        live_websocket_url = fallback_live_websocket_url()
+    if ENABLE_LIVE_WEBSOCKET:
+        try:
+            live_websocket_url = fetch_cloud_live_websocket_url()
+        except Exception:
+            live_websocket_url = fallback_live_websocket_url()
 
     with STATE_LOCK:
         current_version = int(current_state.get("version") or 0)
@@ -256,6 +293,24 @@ class CaliondaPiHandler(SimpleHTTPRequestHandler):
             )
             return
 
+        if parsed.path == "/api/events":
+            since_values = self.query_params(parsed).get("since", [])
+            since = since_values[0] if since_values else None
+
+            try:
+                self.serve_json(fetch_cloud_events(since))
+            except Exception as error:  # noqa: BLE001
+                self.serve_json(
+                    {
+                        "ok": False,
+                        "display_id": DISPLAY_ID,
+                        "events": [],
+                        "error": str(error),
+                    },
+                    status=HTTPStatus.BAD_GATEWAY,
+                )
+            return
+
         if parsed.path == "/api/sync":
             try:
                 state = sync_cloud_state_once()
@@ -281,6 +336,23 @@ class CaliondaPiHandler(SimpleHTTPRequestHandler):
             self.path = "/index.html"
 
         super().do_GET()
+
+    def query_params(self, parsed) -> dict[str, list[str]]:
+        raw_query = parsed.query or ""
+        result: dict[str, list[str]] = {}
+
+        for pair in raw_query.split("&"):
+            if not pair:
+                continue
+
+            if "=" in pair:
+                key, value = pair.split("=", 1)
+            else:
+                key, value = pair, ""
+
+            result.setdefault(key, []).append(value)
+
+        return result
 
     def log_message(self, format: str, *args) -> None:
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
