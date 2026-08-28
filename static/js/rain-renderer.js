@@ -237,7 +237,6 @@
             ctx.save();
             ctx.globalCompositeOperation = 'screen';
             ctx.globalAlpha = 0.12 + config.mist * 0.18;
-            ctx.filter = 'blur(' + (16 + config.mist * 24).toFixed(2) + 'px)';
 
             for (let index = 0; index < 3; index += 1) {
                 const x = width * (0.24 + index * 0.28 + Math.sin(timeSeconds * (0.04 + index * 0.01)) * 0.05);
@@ -311,7 +310,6 @@
 
             for (let index = 0; index < drops.length; index += 1) {
                 const drop = drops[index];
-                const blur = Math.max(0.4, config.glow * 5);
                 const gradient = ctx.createLinearGradient(drop.x, drop.y, drop.x + drop.velocityX * 0.08, drop.y + drop.length);
                 gradient.addColorStop(0, rgbaString(config.accentColor, Math.min(1, drop.alpha * 0.22)));
                 gradient.addColorStop(0.24, rgbaString(config.accentColor, Math.min(1, drop.alpha * 0.68)));
@@ -319,14 +317,12 @@
                 ctx.strokeStyle = gradient;
                 ctx.globalAlpha = 0.48 + config.glow * 0.38;
                 ctx.lineWidth = drop.thickness;
-                ctx.filter = 'blur(' + blur.toFixed(2) + 'px)';
                 ctx.beginPath();
                 ctx.moveTo(drop.x, drop.y);
                 ctx.lineTo(drop.x + drop.velocityX * 0.04, drop.y + drop.length);
                 ctx.stroke();
 
                 ctx.globalAlpha = 0.35;
-                ctx.filter = 'none';
                 ctx.beginPath();
                 ctx.moveTo(drop.x, drop.y);
                 ctx.lineTo(drop.x + drop.velocityX * 0.025, drop.y + drop.length * 0.82);
@@ -350,11 +346,9 @@
                 ctx.strokeStyle = rgbaString(splash.color, Math.max(0, splash.alpha));
                 ctx.fillStyle = rgbaString(splash.color, Math.max(0, splash.alpha * 0.18));
                 ctx.lineWidth = Math.max(1.2, config.thickness * 1.3);
-                ctx.filter = 'blur(' + (config.glow * 4).toFixed(2) + 'px)';
                 ctx.beginPath();
                 ctx.arc(splash.x, splash.y, splash.radius, Math.PI * 1.02, Math.PI * 1.98);
                 ctx.stroke();
-                ctx.filter = 'none';
                 ctx.globalAlpha = Math.max(0, splash.alpha * 0.3);
                 ctx.beginPath();
                 ctx.arc(splash.x, splash.y - 1.5, Math.max(1.2, splash.radius * 0.2), 0, Math.PI * 2);
