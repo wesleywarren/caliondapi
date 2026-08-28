@@ -48,6 +48,7 @@
     let lastLoggedSyncError = "";
     let lastEventId = null;
     let lastMessageId = null;
+    let isRefreshingMessages = false;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -189,22 +190,20 @@
             return;
         }
 
+        if (payload.message_id) {
+            lastMessageId = payload.message_id;
+        }
+
         if (payload.type === "heartbeat") {
             return;
         }
 
         if (payload.type === "touch_event" && payload.event && runner && typeof runner.addEvents === "function") {
             runner.addEvents([payload.event]);
-            if (payload.message_id) {
-                lastMessageId = payload.message_id;
-            }
             return;
         }
 
         if (payload.type === "config_update" && payload.state) {
-            if (payload.message_id) {
-                lastMessageId = payload.message_id;
-            }
             const nextState = {
                 display_id: payload.display_id || currentStateDisplayId(),
                 type: payload.state.type || activeType,
@@ -323,6 +322,11 @@
     }
 
     async function refreshEvents() {
+        if (isRefreshingMessages) {
+            return;
+        }
+
+        isRefreshingMessages = true;
         const suffix = lastMessageId ? `?since=${encodeURIComponent(lastMessageId)}` : "";
 
         try {
@@ -350,6 +354,8 @@
                 log(message, "warn");
                 lastLoggedSyncError = message;
             }
+        } finally {
+            isRefreshingMessages = false;
         }
     }
 
@@ -396,7 +402,7 @@
 
     window.setInterval(refreshState, 10000);
     window.setInterval(refreshHealth, 10000);
-    eventPollTimer = window.setInterval(refreshEvents, 350);
+    eventPollTimer = window.setInterval(refreshEvents, 500);
 
     window.addEventListener("click", function (event) {
         if (!runner || typeof runner.addEvents !== "function") {
