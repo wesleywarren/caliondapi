@@ -9,8 +9,8 @@ Current first-pass features:
 - local JSON state endpoint at `/api/state`
 - engine-by-type rendering for `ripples`, `clouds`, and `rain`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
-- background cloud sync for the active Calionda display state
-- direct cloud touch-event polling, with optional WebSocket bridge
+- local active config as the sole render source
+- cloud touch-event WebSocket bridge with outbound state snapshots
 - boot-ready kiosk launcher and service templates
 
 ## Run locally
@@ -29,7 +29,7 @@ http://localhost:8000/
 
 - `server.py` local HTTP server
 - `data/default-state.json` last-known-good fallback config
-- `data/runtime-state.json` last cloud-synced active state
+- `data/runtime-state.json` local active state override (never cloud-synced)
 - `static/index.html` standalone output page
 - `static/js/ripples-renderer.js` ripple animation engine
 - `static/js/rain-renderer.js` rain animation engine
@@ -44,17 +44,15 @@ http://localhost:8000/
 
 - The output canvas is positioned at `50px, 50px` and sized to `255 x 36`.
 - Debug UI starts at `left: 400px` to stay out of the Pixelblaster capture zone.
-- The server polls `https://calionda.com/api/displays/calionda-main/state` by default every 15 seconds.
+- The Pi never pulls active config from the cloud. It renders `data/runtime-state.json` when present, otherwise `data/default-state.json`.
 - Override runtime settings with:
   - `CALIONDA_PI_DISPLAY_ID`
   - `CALIONDA_CLOUD_BASE_URL`
   - `CALIONDA_CLOUD_WEBSOCKET_BASE_URL`
-  - `CALIONDA_ENABLE_LIVE_WEBSOCKET`
-  - `CALIONDA_SYNC_INTERVAL_SECONDS`
-  - `CALIONDA_SYNC_TIMEOUT_SECONDS`
+  - `CALIONDA_ENABLE_LIVE_WEBSOCKET` (enabled by default)
 
-- Touch events are polled from the cloud through the local `/api/events` proxy by default.
-- WebSockets are disabled by default on the Pi until a public live socket endpoint is confirmed.
+- Touch events arrive over the cloud WebSocket. The output page reconnects automatically if the link drops.
+- The output page sends a current animation snapshot over that WebSocket every 3 seconds. Snapshots are outbound-only and do not alter the Pi renderer.
 
 ## Autostart On Pi
 

@@ -203,7 +203,6 @@
         function drawClouds(ctx, width, height, timeSeconds) {
             ctx.save();
             ctx.globalCompositeOperation = "screen";
-            ctx.filter = "blur(" + config.bloom + "px) saturate(" + config.saturation + ")";
 
             const clouds = currentClouds();
             const wrapInset = 0.25;

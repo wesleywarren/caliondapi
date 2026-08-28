@@ -43,12 +43,8 @@
     let reconnectTimer = 0;
     let heartbeatTimer = 0;
     let snapshotTimer = 0;
-    let eventPollTimer = 0;
     let lastHealthResult = "booting";
     let lastLoggedSyncError = "";
-    let lastEventId = null;
-    let lastMessageId = null;
-    let isRefreshingMessages = false;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -165,13 +161,9 @@
         window.clearTimeout(reconnectTimer);
         window.clearInterval(heartbeatTimer);
         window.clearInterval(snapshotTimer);
-        if (eventPollTimer) {
-            window.clearInterval(eventPollTimer);
-        }
         reconnectTimer = 0;
         heartbeatTimer = 0;
         snapshotTimer = 0;
-        eventPollTimer = 0;
     }
 
     function scheduleReconnect() {
@@ -190,10 +182,6 @@
             return;
         }
 
-        if (payload.message_id) {
-            lastMessageId = payload.message_id;
-        }
-
         if (payload.type === "heartbeat") {
             return;
         }
@@ -203,22 +191,8 @@
             return;
         }
 
-        if (payload.type === "config_update" && payload.state) {
-            const nextState = {
-                display_id: payload.display_id || currentStateDisplayId(),
-                type: payload.state.type || activeType,
-                version: payload.state.version != null ? payload.state.version : currentVersion,
-                updated_at: payload.state.updated_at || lastSyncEl.textContent,
-                state: payload.state.state || payload.state.config || payload.state
-            };
-
-            applyState(nextState, "live cloud");
-            log(`Applied live config update${nextState.version != null ? ` v${nextState.version}` : ""}`, "ok");
-            return;
-        }
-
         if (payload.type === "hello") {
-            log("Live touch bridge connected", "ok");
+            log("Live touch bridge connected; local config remains authoritative", "ok");
             return;
         }
     }
@@ -285,7 +259,7 @@
             clearLiveTimers();
             liveConnected = false;
             updateSyncStatus();
-            log("Live socket closed, falling back to polling", "warn");
+            log("Live socket closed; reconnecting for touch events", "warn");
             scheduleReconnect();
         });
 
@@ -321,44 +295,6 @@
         }
     }
 
-    async function refreshEvents() {
-        if (isRefreshingMessages) {
-            return;
-        }
-
-        isRefreshingMessages = true;
-        const suffix = lastMessageId ? `?since=${encodeURIComponent(lastMessageId)}` : "";
-
-        try {
-            const response = await fetch(`/api/live/messages${suffix}`, {
-                cache: "no-store",
-                headers: {
-                    "Accept": "application/json"
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const payload = await response.json();
-
-            if (!payload || !Array.isArray(payload.messages) || payload.messages.length === 0) {
-                return;
-            }
-
-            payload.messages.forEach(handleLiveMessage);
-        } catch (error) {
-            const message = `Live message poll issue: ${error.message}`;
-            if (message !== lastLoggedSyncError) {
-                log(message, "warn");
-                lastLoggedSyncError = message;
-            }
-        } finally {
-            isRefreshingMessages = false;
-        }
-    }
-
     async function refreshHealth() {
         try {
             const response = await fetch("/api/health", {
@@ -382,7 +318,7 @@
             }
 
             if (payload.last_error) {
-                const message = `Cloud sync issue: ${payload.last_error}`;
+                const message = `Touch link issue: ${payload.last_error}`;
                 if (message !== lastLoggedSyncError) {
                     log(message, "warn");
                     lastLoggedSyncError = message;
@@ -398,11 +334,8 @@
     log("Output booted with local fallback config", "ok");
     refreshState();
     refreshHealth();
-    refreshEvents();
 
-    window.setInterval(refreshState, 10000);
     window.setInterval(refreshHealth, 10000);
-    eventPollTimer = window.setInterval(refreshEvents, 500);
 
     window.addEventListener("click", function (event) {
         if (!runner || typeof runner.addEvents !== "function") {

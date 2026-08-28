@@ -7,7 +7,7 @@
         rainColor: '#71d6ff',
         accentColor: '#d7f6ff',
         density: 0.6,
-        speed: 0.72,
+        speed: 0.58,
         wind: 0.12,
         sway: 0.35,
         dropLength: 0.52,
@@ -59,7 +59,7 @@
             rainColor: /^#[0-9a-f]{6}$/i.test(String(merged.rainColor || '')) ? merged.rainColor : DEFAULT_CONFIG.rainColor,
             accentColor: /^#[0-9a-f]{6}$/i.test(String(merged.accentColor || '')) ? merged.accentColor : DEFAULT_CONFIG.accentColor,
             density: clampNumber(merged.density, DEFAULT_CONFIG.density, 0.05, 1),
-            speed: clampNumber(merged.speed, DEFAULT_CONFIG.speed, 0.05, 2),
+            speed: clampNumber(merged.speed, DEFAULT_CONFIG.speed, 0.2, 1),
             wind: clampNumber(merged.wind, DEFAULT_CONFIG.wind, -1, 1),
             sway: clampNumber(merged.sway, DEFAULT_CONFIG.sway, 0, 1),
             dropLength: clampNumber(merged.dropLength, DEFAULT_CONFIG.dropLength, 0.1, 1),
@@ -95,6 +95,10 @@
         const rgb = hexToRgb(hex);
 
         return 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha + ')';
+    }
+
+    function speedFactor(config) {
+        return clampNumber(config && config.speed, DEFAULT_CONFIG.speed, 0.2, 1);
     }
 
     function cloneDrop(drop) {
@@ -139,14 +143,16 @@
         }
 
         function targetDropCount() {
-            return Math.max(12, Math.round(24 + config.density * 280));
+            const slowBoost = 1 + (1 - speedFactor(config)) * 1.15;
+            return Math.max(12, Math.round((22 + config.density * 210) * slowBoost));
         }
 
         function spawnDrop(xOverride, yOverride, speedBoost) {
             const width = config.virtualWidth;
             const height = config.virtualHeight;
-            const baseLength = height * (0.035 + config.dropLength * 0.09);
-            const velocityY = (80 + config.speed * 320) * (0.55 + nextRandom() * 0.95) * (speedBoost || 1);
+            const speed = speedFactor(config);
+            const baseLength = height * (0.03 + config.dropLength * 0.075);
+            const velocityY = (42 + speed * 178) * (0.8 + nextRandom() * 0.6) * (speedBoost || 1);
             const velocityX = (config.wind * 55) + ((nextRandom() * 2 - 1) * config.sway * 18);
             drops.push({
                 x: xOverride != null ? xOverride : nextRandom() * width,
@@ -176,7 +182,7 @@
             const desired = targetDropCount();
 
             while (drops.length < desired) {
-                spawnDrop();
+                spawnDrop(nextRandom() * config.virtualWidth, nextRandom() * config.virtualHeight);
             }
 
             while (drops.length > desired) {
@@ -259,12 +265,7 @@
             const height = config.virtualHeight;
             const width = config.virtualWidth;
             const timeSeconds = engineTimeMs * 0.001;
-
-            spawnCarry += deltaSeconds * targetDropCount() * (0.5 + config.speed * 0.8);
-            while (spawnCarry >= 1) {
-                spawnCarry -= 1;
-                spawnDrop();
-            }
+            const speed = speedFactor(config);
 
             for (let index = drops.length - 1; index >= 0; index -= 1) {
                 const drop = drops[index];
@@ -274,15 +275,15 @@
 
                 if (drop.y - drop.length > height) {
                     if (config.splash > 0.02) {
-                        spawnSplash(drop.x, height - 2, 0.6 + config.splash * 0.6, config.accentColor);
+                        spawnSplash(drop.x, height - 2, 0.78 + config.splash * 0.72 + (1 - speed) * 0.35, config.accentColor);
                     }
 
                     drop.x = nextRandom() * width;
                     drop.y = -drop.length - nextRandom() * height * 0.18;
-                    drop.velocityY = (80 + config.speed * 320) * (0.55 + nextRandom() * 0.95);
+                    drop.velocityY = (42 + speed * 178) * (0.8 + nextRandom() * 0.6);
                     drop.velocityX = (config.wind * 55) + ((nextRandom() * 2 - 1) * config.sway * 18);
                     drop.alpha = 0.22 + nextRandom() * 0.45;
-                    drop.length = height * (0.035 + config.dropLength * 0.09) * (0.55 + nextRandom() * 1.2);
+                    drop.length = height * (0.03 + config.dropLength * 0.075) * (0.62 + nextRandom() * 1.05);
                     drop.thickness = Math.max(0.5, config.thickness * (0.65 + nextRandom() * 0.85));
                     drop.seed = nextRandom() * Math.PI * 2;
                 } else if (drop.x < -24 || drop.x > width + 24) {
@@ -310,10 +311,13 @@
 
             for (let index = 0; index < drops.length; index += 1) {
                 const drop = drops[index];
+                const speed = speedFactor(config);
+                const progress = Math.max(0, Math.min(1, drop.y / Math.max(1, config.virtualHeight)));
+                const opacity = Math.min(1, drop.alpha * (0.6 + progress * 0.55 + (1 - speed) * 0.22));
                 const gradient = ctx.createLinearGradient(drop.x, drop.y, drop.x + drop.velocityX * 0.08, drop.y + drop.length);
-                gradient.addColorStop(0, rgbaString(config.accentColor, Math.min(1, drop.alpha * 0.22)));
-                gradient.addColorStop(0.24, rgbaString(config.accentColor, Math.min(1, drop.alpha * 0.68)));
-                gradient.addColorStop(1, rgbaString(config.rainColor, Math.min(1, drop.alpha)));
+                gradient.addColorStop(0, rgbaString(config.accentColor, Math.min(1, opacity * 0.22)));
+                gradient.addColorStop(0.24, rgbaString(config.accentColor, Math.min(1, opacity * 0.68)));
+                gradient.addColorStop(1, rgbaString(config.rainColor, Math.min(1, opacity)));
                 ctx.strokeStyle = gradient;
                 ctx.globalAlpha = 0.48 + config.glow * 0.38;
                 ctx.lineWidth = drop.thickness;
