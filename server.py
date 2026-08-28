@@ -32,6 +32,7 @@ SYNC_TIMEOUT_SECONDS = max(1, int(os.environ.get("CALIONDA_SYNC_TIMEOUT_SECONDS"
 STATE_LOCK = threading.Lock()
 SYNC_STATUS: dict[str, Any] = {
     "cloud_url": "",
+    "live_websocket_url": "",
     "last_attempt_at": None,
     "last_success_at": None,
     "last_error": None,
@@ -82,7 +83,11 @@ def cloud_state_url() -> str:
     return f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/state"
 
 
-def cloud_live_websocket_url() -> str:
+def cloud_live_bootstrap_url() -> str:
+    return f"{CLOUD_BASE_URL}/api/displays/{quote(DISPLAY_ID)}/live"
+
+
+def fallback_live_websocket_url() -> str:
     if LIVE_WEBSOCKET_BASE_URL:
         base = LIVE_WEBSOCKET_BASE_URL
     else:
@@ -110,7 +115,7 @@ def load_sync_status() -> dict:
                 status.update(payload)
 
         status["cloud_url"] = cloud_state_url()
-        status["live_websocket_url"] = cloud_live_websocket_url()
+        status["live_websocket_url"] = status.get("live_websocket_url") or fallback_live_websocket_url()
         status["state_source"] = "runtime" if RUNTIME_STATE_PATH.exists() else "default"
 
         return status
@@ -121,7 +126,7 @@ def store_sync_status(**updates: Any) -> None:
         SYNC_STATUS.update(updates)
         payload = dict(SYNC_STATUS)
         payload["cloud_url"] = cloud_state_url()
-        payload["live_websocket_url"] = cloud_live_websocket_url()
+        payload["live_websocket_url"] = payload.get("live_websocket_url") or fallback_live_websocket_url()
         atomic_write_json(SYNC_STATUS_PATH, payload)
 
 
@@ -162,11 +167,41 @@ def fetch_cloud_state() -> dict:
     return normalize_cloud_state(payload)
 
 
+def fetch_cloud_live_websocket_url() -> str:
+    request = Request(
+        cloud_live_bootstrap_url(),
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "caliondapi/0.1",
+        },
+        method="GET",
+    )
+
+    with urlopen(request, timeout=SYNC_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if not isinstance(payload, dict):
+        return fallback_live_websocket_url()
+
+    websocket = payload.get("websocket")
+
+    if isinstance(websocket, dict) and isinstance(websocket.get("url"), str) and websocket["url"]:
+        return websocket["url"]
+
+    return fallback_live_websocket_url()
+
+
 def sync_cloud_state_once() -> dict:
     store_sync_status(last_attempt_at=iso_now(), last_result="syncing", last_error=None)
 
     cloud_state = fetch_cloud_state()
+    live_websocket_url = fallback_live_websocket_url()
     current_state = load_state()
+
+    try:
+        live_websocket_url = fetch_cloud_live_websocket_url()
+    except Exception:
+        live_websocket_url = fallback_live_websocket_url()
 
     with STATE_LOCK:
         current_version = int(current_state.get("version") or 0)
@@ -178,6 +213,7 @@ def sync_cloud_state_once() -> dict:
         last_success_at=iso_now(),
         last_result="ok",
         last_error=None,
+        live_websocket_url=live_websocket_url,
         state_version=cloud_state.get("version"),
     )
 
@@ -250,12 +286,17 @@ class CaliondaPiHandler(SimpleHTTPRequestHandler):
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{stamp}] {self.address_string()} {format % args}")
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def serve_json(self, payload: dict, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload, indent=2).encode("utf-8")
         self.send_response(status.value)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
