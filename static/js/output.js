@@ -187,7 +187,19 @@
         }
 
         if (payload.type === "touch_event" && payload.event && runner && typeof runner.addEvents === "function") {
-            runner.addEvents([payload.event]);
+            const event = {
+                ...payload.event,
+                x: Number.isFinite(Number(payload.event.x)) ? Number(payload.event.x) : 127,
+                y: Number.isFinite(Number(payload.event.y)) ? Number(payload.event.y) : 180,
+                strength: Number.isFinite(Number(payload.event.strength)) ? Number(payload.event.strength) : 1,
+                ttl_ms: Number.isFinite(Number(payload.event.ttl_ms)) ? Number(payload.event.ttl_ms) : 4000,
+                created_at_ms: Number.isFinite(Number(payload.event.created_at_ms))
+                    ? Number(payload.event.created_at_ms)
+                    : Date.now()
+            };
+
+            runner.addEvents([event]);
+            log("Remote touch event applied", "ok");
             return;
         }
 

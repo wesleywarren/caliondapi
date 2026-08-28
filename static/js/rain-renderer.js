@@ -123,6 +123,7 @@
             alpha: splash.alpha,
             decay: splash.decay,
             color: splash.color,
+            ring: !!splash.ring,
         };
     }
 
@@ -166,7 +167,7 @@
             });
         }
 
-        function spawnSplash(x, y, strength, color) {
+        function spawnSplash(x, y, strength, color, ring) {
             splashes.push({
                 x: clampNumber(x, config.virtualWidth / 2, 0, config.virtualWidth),
                 y: clampNumber(y, config.virtualHeight * 0.9, 0, config.virtualHeight),
@@ -175,6 +176,7 @@
                 alpha: Math.min(1, 0.26 + config.glow * 0.34) * strength,
                 decay: 0.85 + nextRandom() * 0.55,
                 color: /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color : config.accentColor,
+                ring: !!ring,
             });
         }
 
@@ -201,7 +203,7 @@
                 const strength = clampNumber(event && event.strength, 1, 0.2, 2);
                 const color = /^#[0-9a-f]{6}$/i.test(String(event && event.color || '')) ? event.color : config.accentColor;
 
-                spawnSplash(x, y, 1.1 * strength, color);
+                spawnSplash(x, y, 1.35 * strength, color, true);
 
                 for (let index = 0; index < Math.round(4 + config.splash * 7); index += 1) {
                     spawnDrop(
@@ -347,12 +349,20 @@
 
             for (let index = 0; index < splashes.length; index += 1) {
                 const splash = splashes[index];
-                ctx.strokeStyle = rgbaString(splash.color, Math.max(0, splash.alpha));
-                ctx.fillStyle = rgbaString(splash.color, Math.max(0, splash.alpha * 0.18));
-                ctx.lineWidth = Math.max(1.2, config.thickness * 1.3);
+                const visibleAlpha = Math.max(0, Math.min(1, splash.ring ? 0.95 : splash.alpha));
+                ctx.strokeStyle = rgbaString(splash.color, visibleAlpha);
+                ctx.fillStyle = rgbaString(splash.color, Math.max(0, splash.ring ? 0.32 : splash.alpha * 0.18));
+                ctx.lineWidth = splash.ring ? Math.max(8, config.thickness * 4) : Math.max(1.2, config.thickness * 1.3);
                 ctx.beginPath();
-                ctx.arc(splash.x, splash.y, splash.radius, Math.PI * 1.02, Math.PI * 1.98);
+                ctx.arc(splash.x, splash.y, splash.radius, splash.ring ? 0 : Math.PI * 1.02, splash.ring ? Math.PI * 2 : Math.PI * 1.98);
                 ctx.stroke();
+                if (splash.ring) {
+                    ctx.globalAlpha = 0.55;
+                    ctx.beginPath();
+                    ctx.arc(splash.x, splash.y, Math.max(2, splash.radius * 0.2), 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
                 ctx.globalAlpha = Math.max(0, splash.alpha * 0.3);
                 ctx.beginPath();
                 ctx.arc(splash.x, splash.y - 1.5, Math.max(1.2, splash.radius * 0.2), 0, Math.PI * 2);
@@ -407,6 +417,7 @@
                         alpha: clampNumber(splash && splash.alpha, 0.5, 0, 1),
                         decay: clampNumber(splash && splash.decay, 1, 0.1, 10),
                         color: /^#[0-9a-f]{6}$/i.test(String(splash && splash.color || '')) ? splash.color : config.accentColor,
+                        ring: !!(splash && splash.ring),
                     });
                 });
             }
