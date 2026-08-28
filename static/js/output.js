@@ -1,5 +1,9 @@
 (function () {
     function rendererLibraryForType(type) {
+        if (type === "rain" && window.CaliondaRain) {
+            return window.CaliondaRain;
+        }
+
         if (type === "clouds" && window.CaliondaClouds) {
             return window.CaliondaClouds;
         }

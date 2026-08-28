@@ -7,7 +7,7 @@ Current first-pass features:
 - tiny local Python web server
 - root page at `http://localhost:8000/`
 - local JSON state endpoint at `/api/state`
-- engine-by-type rendering for `ripples` and `clouds`
+- engine-by-type rendering for `ripples`, `clouds`, and `rain`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
 - background cloud sync for the active Calionda display state
 - direct cloud touch-event polling, with optional WebSocket bridge
@@ -32,6 +32,7 @@ http://localhost:8000/
 - `data/runtime-state.json` last cloud-synced active state
 - `static/index.html` standalone output page
 - `static/js/ripples-renderer.js` ripple animation engine
+- `static/js/rain-renderer.js` rain animation engine
 - `static/js/clouds-renderer.js` clouds animation engine
 - `static/js/output.js` local page bootstrap and polling
 - `monitor.sh` mirror both HDMI outputs on the Pi
