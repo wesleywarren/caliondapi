@@ -59,11 +59,11 @@
             rainColor: /^#[0-9a-f]{6}$/i.test(String(merged.rainColor || '')) ? merged.rainColor : DEFAULT_CONFIG.rainColor,
             accentColor: /^#[0-9a-f]{6}$/i.test(String(merged.accentColor || '')) ? merged.accentColor : DEFAULT_CONFIG.accentColor,
             density: clampNumber(merged.density, DEFAULT_CONFIG.density, 0.05, 1),
-            speed: clampNumber(merged.speed, DEFAULT_CONFIG.speed, 0.2, 1),
+            speed: clampNumber(merged.speed, DEFAULT_CONFIG.speed, 0.1, 1),
             wind: clampNumber(merged.wind, DEFAULT_CONFIG.wind, -1, 1),
             sway: clampNumber(merged.sway, DEFAULT_CONFIG.sway, 0, 1),
             dropLength: clampNumber(merged.dropLength, DEFAULT_CONFIG.dropLength, 0.1, 1),
-            thickness: clampNumber(merged.thickness, DEFAULT_CONFIG.thickness, 0.4, 3),
+            thickness: clampNumber(merged.thickness, DEFAULT_CONFIG.thickness, 0.4, 6),
             glow: clampNumber(merged.glow, DEFAULT_CONFIG.glow, 0, 1),
             splash: clampNumber(merged.splash, DEFAULT_CONFIG.splash, 0, 1),
             mist: clampNumber(merged.mist, DEFAULT_CONFIG.mist, 0, 1),
@@ -98,7 +98,15 @@
     }
 
     function speedFactor(config) {
-        return clampNumber(config && config.speed, DEFAULT_CONFIG.speed, 0.2, 1);
+        return clampNumber(config && config.speed, DEFAULT_CONFIG.speed, 0.1, 1);
+    }
+
+    function fallDurationSeconds(speed) {
+        return 12 - ((speed - 0.1) / 0.9) * 11;
+    }
+
+    function fallVelocity(config) {
+        return config.virtualHeight / fallDurationSeconds(speedFactor(config));
     }
 
     function cloneDrop(drop) {
@@ -153,7 +161,7 @@
             const height = config.virtualHeight;
             const speed = speedFactor(config);
             const baseLength = height * (0.03 + config.dropLength * 0.075);
-            const velocityY = (42 + speed * 178) * (0.8 + nextRandom() * 0.6) * (speedBoost || 1);
+            const velocityY = fallVelocity(config) * (0.8 + nextRandom() * 0.6) * (speedBoost || 1);
             const velocityX = (config.wind * 55) + ((nextRandom() * 2 - 1) * config.sway * 18);
             drops.push({
                 x: xOverride != null ? xOverride : nextRandom() * width,
@@ -172,7 +180,7 @@
                 x: clampNumber(x, config.virtualWidth / 2, 0, config.virtualWidth),
                 y: clampNumber(y, config.virtualHeight * 0.9, 0, config.virtualHeight),
                 radius: 3,
-                maxRadius: (10 + config.splash * 36) * strength,
+                maxRadius: (10 + config.splash * 36) * strength * 1.5,
                 alpha: Math.min(1, 0.26 + config.glow * 0.34) * strength,
                 decay: 0.85 + nextRandom() * 0.55,
                 color: /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color : config.accentColor,
@@ -282,7 +290,7 @@
 
                     drop.x = nextRandom() * width;
                     drop.y = -drop.length - nextRandom() * height * 0.18;
-                    drop.velocityY = (42 + speed * 178) * (0.8 + nextRandom() * 0.6);
+                    drop.velocityY = fallVelocity(config) * (0.8 + nextRandom() * 0.6);
                     drop.velocityX = (config.wind * 55) + ((nextRandom() * 2 - 1) * config.sway * 18);
                     drop.alpha = 0.22 + nextRandom() * 0.45;
                     drop.length = height * (0.03 + config.dropLength * 0.075) * (0.62 + nextRandom() * 1.05);
@@ -297,7 +305,7 @@
         function updateSplashes(deltaSeconds) {
             for (let index = splashes.length - 1; index >= 0; index -= 1) {
                 const splash = splashes[index];
-                splash.radius += splash.maxRadius * deltaSeconds * 1.8;
+                splash.radius += splash.maxRadius * deltaSeconds * 0.63;
                 splash.alpha -= deltaSeconds * splash.decay;
 
                 if (splash.alpha <= 0 || splash.radius >= splash.maxRadius) {
@@ -350,22 +358,9 @@
             for (let index = 0; index < splashes.length; index += 1) {
                 const splash = splashes[index];
                 const visibleAlpha = Math.max(0, Math.min(1, splash.ring ? 0.95 : splash.alpha));
-                ctx.strokeStyle = rgbaString(splash.color, visibleAlpha);
-                ctx.fillStyle = rgbaString(splash.color, Math.max(0, splash.ring ? 0.32 : splash.alpha * 0.18));
-                ctx.lineWidth = splash.ring ? Math.max(8, config.thickness * 4) : Math.max(1.2, config.thickness * 1.3);
+                ctx.fillStyle = rgbaString(splash.color, visibleAlpha);
                 ctx.beginPath();
-                ctx.arc(splash.x, splash.y, splash.radius, splash.ring ? 0 : Math.PI * 1.02, splash.ring ? Math.PI * 2 : Math.PI * 1.98);
-                ctx.stroke();
-                if (splash.ring) {
-                    ctx.globalAlpha = 0.55;
-                    ctx.beginPath();
-                    ctx.arc(splash.x, splash.y, Math.max(2, splash.radius * 0.2), 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.globalAlpha = 1;
-                }
-                ctx.globalAlpha = Math.max(0, splash.alpha * 0.3);
-                ctx.beginPath();
-                ctx.arc(splash.x, splash.y - 1.5, Math.max(1.2, splash.radius * 0.2), 0, Math.PI * 2);
+                ctx.arc(splash.x, splash.y, splash.radius, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.globalAlpha = 1;
             }
