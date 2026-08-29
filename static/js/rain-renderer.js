@@ -276,8 +276,8 @@
                 drop.y += drop.velocityY * deltaSeconds;
 
                 if (drop.y - drop.length > height) {
-                    if (config.splash > 0.02) {
-                        spawnSplash(drop.x, height - 2, 0.78 + config.splash * 0.72 + (1 - speed) * 0.35, config.accentColor);
+                    if (config.splash > 0.02 && nextRandom() < 0.33) {
+                        spawnSplash(drop.x, height - 2, 0.68 + config.splash * 0.6 + (1 - speed) * 0.2, config.accentColor);
                     }
 
                     drop.x = nextRandom() * width;
