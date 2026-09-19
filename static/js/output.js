@@ -46,6 +46,7 @@
     let lastHealthResult = "booting";
     let lastLoggedSyncError = "";
     let relayPower = false;
+    let lastRelayStatus = null;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -153,6 +154,18 @@
         });
     }
 
+    function sendRelayStatus(relay) {
+        if (!relay || typeof relay !== "object") {
+            return false;
+        }
+
+        return sendSocketMessage({
+            type: "relay_status",
+            display_id: currentStateDisplayId(),
+            relay: { ...relay, observed_at: new Date().toISOString() }
+        });
+    }
+
     function currentStateDisplayId() {
         const payloadDisplayId = runner && typeof runner.getConfig === "function" ? runner.getConfig().display_id : null;
         return payloadDisplayId || fallbackDisplayId;
@@ -228,6 +241,8 @@
                 throw new Error(payload.error || "Relay command was rejected");
             }
             relayPower = payload.led_controller_power === true;
+            lastRelayStatus = payload;
+            sendRelayStatus(payload);
             log(`LED controller relay ${relayPower ? "on" : "off"}`, "ok");
         } catch (error) {
             log(`LED controller relay unavailable: ${error.message}`, "warn");
@@ -270,6 +285,7 @@
             });
 
             sendCurrentState();
+            sendRelayStatus(lastRelayStatus);
 
             heartbeatTimer = window.setInterval(function () {
                 sendSocketMessage({
@@ -348,6 +364,8 @@
             const payload = await response.json();
             lastHealthResult = payload.last_result || "unknown";
             liveWebsocketEnabled = payload.live_websocket_enabled === true;
+            lastRelayStatus = payload.relay || null;
+            sendRelayStatus(lastRelayStatus);
             updateSyncStatus();
 
             if (liveWebsocketEnabled && payload.live_websocket_url) {
