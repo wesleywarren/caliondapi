@@ -45,6 +45,7 @@
     let snapshotTimer = 0;
     let lastHealthResult = "booting";
     let lastLoggedSyncError = "";
+    let relayPower = false;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -203,9 +204,33 @@
             return;
         }
 
+        if (payload.type === "config_update" && payload.state && payload.state.state) {
+            const requestedPower = payload.state.state.ledControllerPower === true;
+            setRelayPower(requestedPower);
+            return;
+        }
+
         if (payload.type === "hello") {
             log("Live touch bridge connected; local config remains authoritative", "ok");
             return;
+        }
+    }
+
+    async function setRelayPower(on) {
+        try {
+            const response = await fetch("/api/relay", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({ led_controller_power: on })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || "Relay command was rejected");
+            }
+            relayPower = payload.led_controller_power === true;
+            log(`LED controller relay ${relayPower ? "on" : "off"}`, "ok");
+        } catch (error) {
+            log(`LED controller relay unavailable: ${error.message}`, "warn");
         }
     }
 

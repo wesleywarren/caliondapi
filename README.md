@@ -50,8 +50,11 @@ http://localhost:8000/
   - `CALIONDA_CLOUD_BASE_URL`
   - `CALIONDA_CLOUD_WEBSOCKET_BASE_URL`
   - `CALIONDA_ENABLE_LIVE_WEBSOCKET` (enabled by default)
+  - `CALIONDA_RELAY_GPIO` — BCM GPIO number for the relay input. When omitted, relay control is disabled and remains off.
+  - `CALIONDA_RELAY_ACTIVE_LOW` — defaults to `1`, which matches common low-level-trigger relay boards. Set to `0` for an active-high board.
 
 - Touch events arrive over the cloud WebSocket. The output page reconnects automatically if the link drops.
+- A cloud `ledControllerPower` setting is delivered over that WebSocket and is posted only to the Pi's loopback-only `/api/relay` endpoint. The Pi service initializes the relay off.
 - The output page sends a current animation snapshot over that WebSocket every 3 seconds. Snapshots are outbound-only and do not alter the Pi renderer.
 
 ## Autostart On Pi
