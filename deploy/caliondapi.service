@@ -9,6 +9,9 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/caliondapi
 Environment=PYTHONUNBUFFERED=1
+Environment=CALIONDA_ENABLE_REBOOT=0
+CapabilityBoundingSet=CAP_SYS_BOOT
+AmbientCapabilities=CAP_SYS_BOOT
 ExecStart=/usr/bin/python3 /home/pi/caliondapi/server.py
 Restart=always
 RestartSec=5

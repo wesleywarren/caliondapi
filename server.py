@@ -25,6 +25,9 @@ DISPLAY_ID = os.environ.get("CALIONDA_PI_DISPLAY_ID", "calionda-main")
 CLOUD_BASE_URL = os.environ.get("CALIONDA_CLOUD_BASE_URL", "https://calionda.com").rstrip("/")
 LIVE_WEBSOCKET_BASE_URL = os.environ.get("CALIONDA_CLOUD_WEBSOCKET_BASE_URL", "").rstrip("/")
 ENABLE_LIVE_WEBSOCKET = os.environ.get("CALIONDA_ENABLE_LIVE_WEBSOCKET", "1").lower() in {"1", "true", "yes", "on"}
+ENABLE_REBOOT = os.environ.get("CALIONDA_ENABLE_REBOOT", "0").lower() in {"1", "true", "yes", "on"}
+REBOOT_LOCK = threading.Lock()
+REBOOT_SCHEDULED = False
 
 
 class RelayController:
@@ -167,6 +170,33 @@ def store_sync_status(**updates: Any) -> None:
         atomic_write_json(SYNC_STATUS_PATH, payload)
 
 
+def schedule_reboot() -> tuple[bool, str]:
+    global REBOOT_SCHEDULED
+
+    if not ENABLE_REBOOT:
+        return False, "Reboot is disabled. Set CALIONDA_ENABLE_REBOOT=1 after installing the service capability."
+
+    with REBOOT_LOCK:
+        if REBOOT_SCHEDULED:
+            return True, "Reboot is already scheduled."
+
+        REBOOT_SCHEDULED = True
+
+    def reboot() -> None:
+        try:
+            os.sync()
+            os.reboot(os.LINUX_REBOOT_CMD_RESTART)
+        except OSError as error:
+            global REBOOT_SCHEDULED
+            with REBOOT_LOCK:
+                REBOOT_SCHEDULED = False
+            store_sync_status(last_result="reboot-error", last_error=str(error))
+
+    # Send the HTTP response before the system starts shutting down.
+    threading.Timer(1.0, reboot).start()
+    return True, "Reboot scheduled."
+
+
 class CaliondaPiHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
@@ -200,6 +230,16 @@ class CaliondaPiHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+
+        if parsed.path == "/api/reboot":
+            if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                self.send_error(HTTPStatus.FORBIDDEN.value, "Reboot commands are only accepted from this Pi.")
+                return
+
+            scheduled, message = schedule_reboot()
+            status = HTTPStatus.ACCEPTED if scheduled else HTTPStatus.SERVICE_UNAVAILABLE
+            self.serve_json({"scheduled": scheduled, "message": message}, status)
+            return
 
         if parsed.path != "/api/relay":
             self.send_error(HTTPStatus.NOT_FOUND.value)

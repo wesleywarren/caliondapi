@@ -223,6 +223,11 @@
             return;
         }
 
+        if (payload.type === "reboot_request") {
+            requestPiReboot();
+            return;
+        }
+
         if (payload.type === "hello") {
             log("Live touch bridge connected; local config remains authoritative", "ok");
             return;
@@ -246,6 +251,17 @@
             log(`LED controller relay ${relayPower ? "on" : "off"}`, "ok");
         } catch (error) {
             log(`LED controller relay unavailable: ${error.message}`, "warn");
+        }
+    }
+
+    async function requestPiReboot() {
+        try {
+            const response = await fetch("/api/reboot", { method: "POST" });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || "Reboot command was rejected");
+            log("Pi reboot scheduled", "warn");
+        } catch (error) {
+            log(`Pi reboot unavailable: ${error.message}`, "warn");
         }
     }
 
