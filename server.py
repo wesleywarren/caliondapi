@@ -55,7 +55,8 @@ class RelayController:
         try:
             from gpiozero import OutputDevice
 
-            # initial_value=False is the fail-safe state: the NO contact remains open.
+            # The temporary onsite wiring test intentionally starts with the
+            # normally-open relay closed, so LEDs receive power immediately.
             self.device = OutputDevice(
                 self.pin,
                 active_high=not self.active_low,
