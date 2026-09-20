@@ -1,5 +1,9 @@
 (function () {
     function rendererLibraryForType(type) {
+        if (type === "wiring-test" && window.CaliondaWiringTest) {
+            return window.CaliondaWiringTest;
+        }
+
         if (type === "rain" && window.CaliondaRain) {
             return window.CaliondaRain;
         }
@@ -18,10 +22,10 @@
 
     const fallbackState = {
         display_id: "calionda-main",
-        type: "ripples",
+        type: "wiring-test",
         version: 0,
         updated_at: null,
-        state: window.CaliondaRipples.DEFAULT_CONFIG
+        state: window.CaliondaWiringTest.DEFAULT_CONFIG
     };
 
     const canvas = document.getElementById("pixelblaster-output");
@@ -136,6 +140,7 @@
         currentVersion = nextVersion;
 
         ensureRunner(config);
+        setRelayPower(config.ledControllerPower === true);
     }
 
     function currentSnapshotPayload() {

@@ -7,7 +7,7 @@ Current first-pass features:
 - tiny local Python web server
 - root page at `http://localhost:8000/`
 - local JSON state endpoint at `/api/state`
-- engine-by-type rendering for `ripples`, `clouds`, and `rain`
+- engine-by-type rendering for `ripples`, `clouds`, `rain`, and `wiring-test`
 - on-screen debug panel outside the `255 x 36` Pixelblaster capture area
 - local active config as the sole render source
 - cloud touch-event WebSocket bridge with outbound state snapshots
@@ -44,7 +44,8 @@ http://localhost:8000/
 
 - The output canvas is positioned at `50px, 50px` and sized to `255 x 36`.
 - Debug UI starts at `left: 400px` to stay out of the Pixelblaster capture zone.
-- The Pi never pulls active config from the cloud. It renders `data/runtime-state.json` when present, otherwise `data/default-state.json`.
+- The Pi never pulls active config from the cloud. During LED installation it deliberately renders `data/default-state.json` before any older `data/runtime-state.json`, so the wiring test remains deterministic offline.
+- The included wiring test powers the controller on and repeats solid horizontal rows in this order: red, orange, yellow, green, blue, purple. A black bar, 10% of the output width, moves left-to-right every 12 seconds.
 - Override runtime settings with:
   - `CALIONDA_PI_DISPLAY_ID`
   - `CALIONDA_CLOUD_BASE_URL`
@@ -54,7 +55,7 @@ http://localhost:8000/
   - `CALIONDA_ENABLE_REBOOT` — defaults to `0`. Set to `1` only after deploying the included systemd capability settings.
 
 - Touch events arrive over the cloud WebSocket. The output page reconnects automatically if the link drops.
-- A cloud `ledControllerPower` setting is delivered over that WebSocket and is posted only to the Pi's loopback-only `/api/relay` endpoint. The Pi service initializes the relay off.
+- A cloud `ledControllerPower` setting is delivered over that WebSocket and is posted only to the Pi's loopback-only `/api/relay` endpoint. The wiring-test fallback initializes the relay on.
 - Dashboard reboot requests are discrete live messages, not persisted settings. The Pi accepts them only on loopback and schedules a reboot one second later.
 - The output page sends a current animation snapshot over that WebSocket every 3 seconds. Snapshots are outbound-only and do not alter the Pi renderer.
 

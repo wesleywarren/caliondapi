@@ -107,7 +107,10 @@ def atomic_write_json(path: Path, payload: dict) -> None:
 
 
 def load_state() -> dict:
-    for path in (RUNTIME_STATE_PATH, DEFAULT_STATE_PATH):
+    # The wiring-test default deliberately takes precedence while LEDs are being
+    # installed. It keeps the display deterministic even if an older runtime
+    # state file remains on the Pi and there is no network connection.
+    for path in (DEFAULT_STATE_PATH, RUNTIME_STATE_PATH):
         if not path.exists():
             continue
 
@@ -291,6 +294,11 @@ class CaliondaPiHandler(SimpleHTTPRequestHandler):
 
 def main() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Power the LED controller immediately for the offline wiring-test default;
+    # the kiosk renderer will then begin the pattern as soon as it loads.
+    state = load_state()
+    if state.get("state", {}).get("ledControllerPower") is True:
+        RELAY.set_power(True)
     store_sync_status(last_result="local", last_error=None, live_websocket_url=fallback_live_websocket_url())
 
     server = ThreadingHTTPServer((HOST, PORT), CaliondaPiHandler)
