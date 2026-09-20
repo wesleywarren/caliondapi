@@ -29,20 +29,24 @@ ENABLE_REBOOT = os.environ.get("CALIONDA_ENABLE_REBOOT", "0").lower() in {"1", "
 REBOOT_LOCK = threading.Lock()
 REBOOT_SCHEDULED = False
 
+# Relay wiring: BCM GPIO 17 is physical header pin 11.
+# Set RELAY_ACTIVE_LOW to False only if your relay turns on with a HIGH signal.
+RELAY_GPIO = 17
+RELAY_ACTIVE_LOW = True
+
 
 class RelayController:
     """Optional GPIO relay control, deliberately off unless a BCM GPIO is configured."""
 
     def __init__(self) -> None:
-        configured_pin = os.environ.get("CALIONDA_RELAY_GPIO", "").strip()
-        self.pin = int(configured_pin) if configured_pin.isdigit() else None
-        self.active_low = os.environ.get("CALIONDA_RELAY_ACTIVE_LOW", "1").lower() in {"1", "true", "yes", "on"}
+        self.pin = RELAY_GPIO
+        self.active_low = RELAY_ACTIVE_LOW
         self.device: Any = None
         self.error: str | None = None
         self.on = False
 
         if self.pin is None:
-            self.error = "Relay disabled: CALIONDA_RELAY_GPIO is not configured."
+            self.error = "Relay disabled: RELAY_GPIO is not configured."
             return
 
         try:
