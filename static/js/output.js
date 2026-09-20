@@ -30,6 +30,7 @@
     const stateSourceEl = document.getElementById("state-source");
     const lastSyncEl = document.getElementById("last-sync");
     const syncStatusEl = document.getElementById("sync-status");
+    const relayStatusEl = document.getElementById("relay-status");
     const logEl = document.getElementById("log");
     const fallbackDisplayId = "calionda-main";
 
@@ -100,6 +101,24 @@
         const syncLabel = lastHealthResult || "unknown";
         syncStatusEl.textContent = `${syncLabel} / ${liveLabel}`;
         syncStatusEl.className = liveConnected || lastHealthResult === "ok" ? "meta-value ok" : "meta-value warn";
+    }
+
+    function renderRelayStatus(relay) {
+        if (!relay) {
+            relayStatusEl.textContent = "unknown";
+            relayStatusEl.className = "meta-value warn";
+            return;
+        }
+
+        if (relay.available !== true) {
+            relayStatusEl.textContent = "unavailable";
+            relayStatusEl.className = "meta-value warn";
+            return;
+        }
+
+        const on = relay.led_controller_power === true;
+        relayStatusEl.textContent = on ? "ON" : "OFF";
+        relayStatusEl.className = on ? "meta-value ok" : "meta-value";
     }
 
     function applyState(payload, source) {
@@ -247,6 +266,7 @@
             }
             relayPower = payload.led_controller_power === true;
             lastRelayStatus = payload;
+            renderRelayStatus(payload);
             sendRelayStatus(payload);
             log(`LED controller relay ${relayPower ? "on" : "off"}`, "ok");
         } catch (error) {
@@ -381,6 +401,7 @@
             lastHealthResult = payload.last_result || "unknown";
             liveWebsocketEnabled = payload.live_websocket_enabled === true;
             lastRelayStatus = payload.relay || null;
+            renderRelayStatus(lastRelayStatus);
             sendRelayStatus(lastRelayStatus);
             updateSyncStatus();
 
