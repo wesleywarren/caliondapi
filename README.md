@@ -50,7 +50,7 @@ http://localhost:8000/
   - `CALIONDA_CLOUD_BASE_URL`
   - `CALIONDA_CLOUD_WEBSOCKET_BASE_URL`
   - `CALIONDA_ENABLE_LIVE_WEBSOCKET` (enabled by default)
-  - Relay GPIO settings live at the top of `server.py`. The shipped setting uses BCM GPIO 17 (physical header pin 11) with a low-level-trigger relay.
+  - Relay GPIO settings live at the top of `server.py`. The shipped setting uses BCM GPIO 17 (physical header pin 11) with a high-level-trigger relay.
   - `CALIONDA_ENABLE_REBOOT` — defaults to `0`. Set to `1` only after deploying the included systemd capability settings.
 
 - Touch events arrive over the cloud WebSocket. The output page reconnects automatically if the link drops.

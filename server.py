@@ -30,9 +30,9 @@ REBOOT_LOCK = threading.Lock()
 REBOOT_SCHEDULED = False
 
 # Relay wiring: BCM GPIO 17 is physical header pin 11.
-# Set RELAY_ACTIVE_LOW to False only if your relay turns on with a HIGH signal.
+# This relay turns on with a HIGH signal.
 RELAY_GPIO = 17
-RELAY_ACTIVE_LOW = True
+RELAY_ACTIVE_LOW = False
 
 
 class RelayController:
