@@ -33,6 +33,9 @@ REBOOT_SCHEDULED = False
 # This relay turns on with a HIGH signal.
 RELAY_GPIO = 17
 RELAY_ACTIVE_LOW = False
+# The current onsite wiring-test install must power the controller as soon as
+# GPIO is initialized; this does not depend on cloud connectivity or Chromium.
+RELAY_DEFAULT_ON = True
 
 
 class RelayController:
@@ -53,7 +56,12 @@ class RelayController:
             from gpiozero import OutputDevice
 
             # initial_value=False is the fail-safe state: the NO contact remains open.
-            self.device = OutputDevice(self.pin, active_high=not self.active_low, initial_value=False)
+            self.device = OutputDevice(
+                self.pin,
+                active_high=not self.active_low,
+                initial_value=RELAY_DEFAULT_ON,
+            )
+            self.on = RELAY_DEFAULT_ON
         except Exception as error:  # GPIO libraries are unavailable on non-Pi development hosts.
             self.error = f"Relay unavailable: {error}"
 
