@@ -45,7 +45,7 @@ http://localhost:8000/
 - The output canvas is positioned at `50px, 50px` and sized to `255 x 36`.
 - Debug UI starts at `left: 400px` to stay out of the Pixelblaster capture zone.
 - The Pi never pulls active config from the cloud. During LED installation it deliberately renders `data/default-state.json` before any older `data/runtime-state.json`, so the wiring test remains deterministic offline.
-- The included wiring test powers the controller on and repeats solid horizontal rows in this order: red, orange, yellow, green, blue, purple. A black bar, 10% of the output width, moves left-to-right every 12 seconds.
+- The included wiring test powers the controller on and repeats solid horizontal rows in this order: red, orange, yellow, green, blue, purple, cyan, magenta. A black bar, 10% of the output width, moves left-to-right every 12 seconds.
 - Override runtime settings with:
   - `CALIONDA_PI_DISPLAY_ID`
   - `CALIONDA_CLOUD_BASE_URL`

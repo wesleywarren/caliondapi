@@ -1,5 +1,5 @@
 (function () {
-    const ROW_COLORS = ['#ff0000', '#ff7a00', '#fff000', '#00d84a', '#0077ff', '#8b00ff'];
+    const ROW_COLORS = ['#ff0000', '#ff7a00', '#fff000', '#00d84a', '#0077ff', '#8b00ff', '#00e5ff', '#ff00cc'];
     const DEFAULT_CONFIG = { type: 'wiring-test', ledControllerPower: true, outputWidth: 255, outputHeight: 36, cropX: 50, cropY: 50, darkBarWidthPercent: 10, barTravelDurationMs: 12000 };
     function number(value, fallback, min, max) { const parsed = Number(value); return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback; }
     function normalizeConfig(nextConfig) { const config = { ...DEFAULT_CONFIG, ...(nextConfig || {}) }; return { ...config, type: 'wiring-test', ledControllerPower: config.ledControllerPower !== false, outputWidth: Math.round(number(config.outputWidth, 255, 1, 4096)), outputHeight: Math.round(number(config.outputHeight, 36, 1, 4096)), cropX: Math.round(number(config.cropX, 50, -10000, 10000)), cropY: Math.round(number(config.cropY, 50, -10000, 10000)), darkBarWidthPercent: number(config.darkBarWidthPercent, 10, 1, 50), barTravelDurationMs: number(config.barTravelDurationMs, 12000, 1000, 120000) }; }
