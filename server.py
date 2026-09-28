@@ -116,9 +116,8 @@ def atomic_write_json(path: Path, payload: dict) -> None:
 
 
 def load_state() -> dict:
-    # The wiring-test default deliberately takes precedence while LEDs are being
-    # installed. It keeps the display deterministic even if an older runtime
-    # state file remains on the Pi and there is no network connection.
+    # The checked-in default is the offline fallback. Cloud-published
+    # configurations are applied live by the kiosk WebSocket client.
     for path in (DEFAULT_STATE_PATH, RUNTIME_STATE_PATH):
         if not path.exists():
             continue

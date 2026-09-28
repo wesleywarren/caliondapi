@@ -22,10 +22,13 @@
 
     const fallbackState = {
         display_id: "calionda-main",
-        type: "wiring-test",
+        type: "clouds",
         version: 0,
         updated_at: null,
-        state: window.CaliondaWiringTest.DEFAULT_CONFIG
+        state: {
+            ...window.CaliondaClouds.DEFAULT_CONFIG,
+            ledControllerPower: true
+        }
     };
 
     const canvas = document.getElementById("pixelblaster-output");
@@ -37,6 +40,9 @@
     const relayStatusEl = document.getElementById("relay-status");
     const logEl = document.getElementById("log");
     const fallbackDisplayId = "calionda-main";
+    // Keep black on the HDMI capture area long enough for the Pixelblaster to
+    // sample it before its relay power is removed.
+    const BLACK_FRAME_HOLD_MS = 500;
 
     let currentVersion = null;
     let runner = null;
@@ -52,6 +58,7 @@
     let lastLoggedSyncError = "";
     let relayPower = false;
     let lastRelayStatus = null;
+    let relayOperation = 0;
 
     function log(message, tone) {
         const item = document.createElement("li");
@@ -100,6 +107,23 @@
         runner.applyConfig(config);
     }
 
+    function blankOutput() {
+        if (runner) {
+            runner.destroy();
+            runner = null;
+        }
+
+        const context = canvas.getContext("2d", { alpha: false });
+        context.fillStyle = "#000000";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function wait(milliseconds) {
+        return new Promise(function (resolve) {
+            window.setTimeout(resolve, milliseconds);
+        });
+    }
+
     function updateSyncStatus() {
         const liveLabel = liveConnected ? "live" : "polling";
         const syncLabel = lastHealthResult || "unknown";
@@ -139,8 +163,16 @@
         lastSyncEl.textContent = payload.updated_at || "local default";
         currentVersion = nextVersion;
 
+        if (config.ledControllerPower === false) {
+            setRelayPower(false);
+            return;
+        }
+
         ensureRunner(config);
-        setRelayPower(config.ledControllerPower === true);
+
+        if (config.ledControllerPower === true) {
+            setRelayPower(true);
+        }
     }
 
     function currentSnapshotPayload() {
@@ -242,8 +274,12 @@
         }
 
         if (payload.type === "config_update" && payload.state && payload.state.state) {
-            const requestedPower = payload.state.state.ledControllerPower === true;
-            setRelayPower(requestedPower);
+            // Cloud-published configurations are authoritative for the running
+            // display.  The relay setting is applied by applyState alongside
+            // the renderer so type changes (clouds/rain/ripples) take effect
+            // without restarting the kiosk.
+            applyState(payload.state, "cloud live");
+            log(`Applied cloud config version ${payload.state.version ?? "unknown"}`, "ok");
             return;
         }
 
@@ -259,6 +295,20 @@
     }
 
     async function setRelayPower(on) {
+        const operation = ++relayOperation;
+
+        if (!on) {
+            blankOutput();
+            log("Output blacked before LED controller relay off", "ok");
+            await wait(BLACK_FRAME_HOLD_MS);
+
+            // A newer power-on/config request arrived while holding the black
+            // frame, so never let this older request cut the relay afterward.
+            if (operation !== relayOperation) {
+                return;
+            }
+        }
+
         try {
             const response = await fetch("/api/relay", {
                 method: "POST",
@@ -269,6 +319,11 @@
             if (!response.ok) {
                 throw new Error(payload.error || "Relay command was rejected");
             }
+
+            if (operation !== relayOperation) {
+                return;
+            }
+
             relayPower = payload.led_controller_power === true;
             lastRelayStatus = payload;
             renderRelayStatus(payload);

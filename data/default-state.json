@@ -1,16 +1,41 @@
 {
   "display_id": "calionda-main",
-  "type": "wiring-test",
+  "type": "clouds",
   "version": 1,
-  "updated_at": "2026-08-27T00:00:00Z",
+  "updated_at": "2026-09-28T00:00:00Z",
   "state": {
-    "type": "wiring-test",
+    "type": "clouds",
     "ledControllerPower": true,
+    "backgroundTop": "#07111d",
+    "backgroundMid": "#0f2740",
+    "backgroundBottom": "#040a10",
+    "speed": 0.7,
+    "drift": 0.72,
+    "horizontalMovement": 0.27,
+    "verticalMovement": 0.28,
+    "horizontalFlow": 0,
+    "verticalFlow": 0,
+    "avoidanceDistance": 0.06,
+    "bloom": 42,
+    "saturation": 1.22,
+    "vignette": 0.2,
+    "pointCount": 7,
+    "virtualWidth": 255,
+    "virtualHeight": 360,
     "outputWidth": 255,
     "outputHeight": 36,
+    "verticalScale": 10,
     "cropX": 50,
     "cropY": 50,
-    "darkBarWidthPercent": 10,
-    "barTravelDurationMs": 12000
+    "palette": [
+      {"hue": 178, "saturation": 88, "lightness": 68, "alpha": 0.22, "radius": 0.28},
+      {"hue": 194, "saturation": 86, "lightness": 62, "alpha": 0.18, "radius": 0.26},
+      {"hue": 214, "saturation": 84, "lightness": 60, "alpha": 0.2, "radius": 0.31},
+      {"hue": 240, "saturation": 82, "lightness": 58, "alpha": 0.17, "radius": 0.24},
+      {"hue": 258, "saturation": 80, "lightness": 56, "alpha": 0.13, "radius": 0.22},
+      {"hue": 153, "saturation": 78, "lightness": 58, "alpha": 0.15, "radius": 0.2},
+      {"hue": 186, "saturation": 90, "lightness": 66, "alpha": 0.21, "radius": 0.27},
+      {"hue": 205, "saturation": 86, "lightness": 57, "alpha": 0.16, "radius": 0.23}
+    ]
   }
 }
